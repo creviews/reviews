@@ -538,6 +538,20 @@ $("surprise").addEventListener("click", function () {
 });
 window.addEventListener("hashchange", route);
 
+// Clicking anywhere outside the open review, or pressing Escape, closes it
+function closeReview() {
+  if (!$("review-view").hidden) location.hash = "";
+}
+document.addEventListener("click", function (e) {
+  if ($("review-view").hidden) return;
+  if (e.target.closest(".cover-edge, a, button, input")) return;
+  if (window.getSelection && String(window.getSelection())) return;  // don't close while selecting text
+  closeReview();
+});
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") closeReview();
+});
+  
 $("count").textContent = "Putting the books on the shelf…";
 loadReviews().then(route).catch(function (err) {
   $("shelf").innerHTML = '<p class="empty">' + esc(err.message || "The reviews couldn't be loaded.") + "</p>";
