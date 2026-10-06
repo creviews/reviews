@@ -1,1 +1,548 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Book Reviews</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bagel+Fat+One&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<style>
+  /* ============================================================
+     COLOURS: change these to restyle the whole site
+     ============================================================ */
+  :root {
+    --wall: #e3f2d7;          /* the wall behind the shelf */
+    --ink: #173a22;           /* writing */
+    --soft-ink: #4d6b55;
+    --shelf: #2f6b3a;         /* the shelf planks */
+    --shelf-top: #4a8d52;
+    --shelf-shadow: #1d4626;
+    --paper: #fffdf5;         /* review pages */
+    --sticker: #ffcf3d;       /* star stickers */
+    --sticker-ink: #5a3d00;
+    --focus: #ff7a59;
+
+    /* book colours, picked for each review */
+    --b1: #3f8f4f; --b2: #8cc63f; --b3: #1f5f4a; --b4: #b9e3a8;
+    --b5: #f4d35e; --b6: #fff3d6; --b7: #5aa89a; --b8: #d9f27b;
+
+    --row: 270px;             /* height of each shelf row */
+    --plank: 18px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --wall: #12261a; --ink: #e9f7e2; --soft-ink: #a7c9ad;
+      --shelf: #5b3b22; --shelf-top: #7a5232; --shelf-shadow: #2e1c0f; --paper: #20352a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --wall: #12261a; --ink: #e9f7e2; --soft-ink: #a7c9ad;
+    --shelf: #5b3b22; --shelf-top: #7a5232; --shelf-shadow: #2e1c0f; --paper: #20352a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { background: var(--wall); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    font: 1.1rem/1.65 "Atkinson Hyperlegible", system-ui, sans-serif;
+    background-color: var(--wall);
+    /* little leaves on the wall */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cg fill='%233f8f4f' fill-opacity='0.13'%3E%3Cpath d='M14 26c4-10 14-12 20-10-2 8-10 14-20 10z'/%3E%3Cpath d='M62 74c2-11 12-15 18-14-1 8-8 15-18 14z' /%3E%3C/g%3E%3C/svg%3E");
+  }
+  .display { font-family: "Bagel Fat One", "Atkinson Hyperlegible", sans-serif; font-weight: 400; }
+  a { color: inherit; }
+  :focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+  .wrap { width: min(72rem, 100% - 2rem); margin: 0 auto; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Sign on the wall ---------- */
+  .sign { padding: 2.5rem 0 1.25rem; }
+  .sign a { text-decoration: none; }
+  .sign h1 {
+    margin: 0;
+    font-size: clamp(2.6rem, 9vw, 5.2rem);
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+    color: var(--shelf);
+    text-shadow: 3px 3px 0 var(--b2);
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sign h1 { color: var(--b2); text-shadow: 3px 3px 0 var(--b3); } }
+  :root[data-theme="dark"] .sign h1 { color: var(--b2); text-shadow: 3px 3px 0 var(--b3); }
+  .sign p { margin: 0.6rem 0 0; color: var(--soft-ink); font-size: 1.15rem; max-width: 34rem; }
+
+  /* ---------- Search and sort ---------- */
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; margin: 1.25rem 0 1.75rem; }
+  .search {
+    flex: 1 1 16rem; min-width: 0;
+    font: inherit; color: var(--ink);
+    background: var(--paper);
+    border: 3px solid var(--shelf); border-radius: 14px;
+    padding: 0.55rem 0.9rem;
+    box-shadow: 4px 4px 0 var(--shelf);
+  }
+  .search::placeholder { color: var(--soft-ink); }
+  .search:focus { outline: none; box-shadow: 4px 4px 0 var(--focus); }
+  .sorts { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .sorts button, .surprise {
+    font: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer;
+    color: var(--ink); background: transparent;
+    border: 2px solid var(--shelf); border-radius: 999px;
+    padding: 0.3rem 0.85rem;
+  }
+  .sorts button[aria-pressed="true"] { background: var(--shelf); color: #fff; }
+  .surprise { background: var(--sticker); color: var(--sticker-ink); border-color: var(--sticker-ink); }
+  .surprise:hover { transform: rotate(-3deg); }
+
+  /* ---------- The bookshelf ---------- */
+  .bookcase {
+    position: relative;
+    padding: 0 1rem;
+    border-left: 14px solid var(--shelf);
+    border-right: 14px solid var(--shelf);
+    border-top: 14px solid var(--shelf);
+    border-radius: 8px 8px 0 0;
+    background:
+      repeating-linear-gradient(to bottom,
+        transparent 0,
+        transparent calc(var(--row) - var(--plank)),
+        var(--shelf-top) calc(var(--row) - var(--plank)),
+        var(--shelf-top) calc(var(--row) - var(--plank) + 4px),
+        var(--shelf) calc(var(--row) - var(--plank) + 4px),
+        var(--shelf) calc(var(--row) - 4px),
+        var(--shelf-shadow) calc(var(--row) - 4px),
+        var(--shelf-shadow) var(--row));
+    background-color: color-mix(in srgb, var(--shelf) 12%, var(--wall));
+    margin-bottom: 1rem;
+  }
+  .shelf { display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: 3px; }
+  .slot {
+    height: var(--row);
+    padding-bottom: var(--plank);
+    display: flex; align-items: flex-end;
+  }
+  .gap { width: 22px; }
+
+  /* A book standing up: you see the spine */
+  .book {
+    --c: var(--b1);
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    width: var(--w, 52px);
+    height: var(--h, 210px);
+    padding: 0.55rem 0 0.6rem;
+    background: var(--c);
+    color: var(--tc, #fff);
+    text-decoration: none;
+    border-radius: 4px 4px 2px 2px;
+    box-shadow: inset 5px 0 0 rgba(255,255,255,0.18), inset -6px 0 0 rgba(0,0,0,0.16);
+    transform-origin: bottom center;
+    transition: transform 0.18s ease;
+  }
+  .book::before, .book::after {         /* the bands near the top and bottom of the spine */
+    content: ""; position: absolute; left: 0; right: 0; height: 5px;
+    background: currentColor; opacity: 0.35;
+  }
+  .book::before { top: 14%; }
+  .book::after { bottom: 12%; }
+  .book:hover, .book:focus-visible { transform: translateY(-14px); }
+  .book .t {
+    writing-mode: vertical-rl;
+    font-family: "Bagel Fat One", sans-serif;
+    font-size: var(--fs, 1.15rem);
+    line-height: 1.05;
+    max-height: 72%;
+    overflow: hidden;
+    text-align: center;
+  }
+  .book .a {
+    font-size: 0.68rem; font-weight: 700; line-height: 1.1;
+    text-align: center; opacity: 0.85; padding: 0 3px;
+    max-width: 100%; overflow: hidden; white-space: nowrap;
+  }
+  .book .a.long { font-size: 0.56rem; }
+
+  /* A book facing out: you see the cover */
+  .book.face {
+    width: var(--fw, 158px);
+    padding: 0;
+    border-radius: 3px 8px 8px 3px;
+    overflow: hidden;
+    box-shadow: inset 8px 0 0 rgba(0,0,0,0.18), 6px 4px 0 rgba(0,0,0,0.12);
+    justify-content: flex-end;
+  }
+  .book.face::before, .book.face::after { display: none; }
+  .book.face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* Star sticker */
+  .stick {
+    position: relative; z-index: 1;
+    display: grid; place-items: center;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--sticker); color: var(--sticker-ink);
+    font: 700 0.78rem/1 "Atkinson Hyperlegible", sans-serif;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+    flex: none;
+  }
+  .stick.top { width: 40px; height: 40px; outline: 2px dashed var(--sticker-ink); outline-offset: -5px; }
+  .face .stick { position: absolute; top: 8px; right: 8px; transform: rotate(10deg); }
+
+  /* Books drop onto the shelf once, when the page first loads */
+  .arrive .book { animation: drop 0.5s cubic-bezier(.3,1.4,.6,1) both; animation-delay: calc(var(--n) * 45ms); }
+  @keyframes drop { from { transform: translateY(-60px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .book.pick { animation: wiggle 0.5s ease 2; }
+  @keyframes wiggle { 0%,100% { transform: translateY(-14px) rotate(0); } 25% { transform: translateY(-14px) rotate(-6deg); } 75% { transform: translateY(-14px) rotate(6deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .arrive .book, .book.pick { animation: none; }
+    .book { transition: none; }
+  }
+
+  .note { color: var(--soft-ink); margin: 0 0 3rem; }
+  .empty { padding: 3rem 1rem calc(var(--plank) + 2rem); margin: 0; color: var(--soft-ink); font-size: 1.15rem; max-width: 30rem; }
+
+  /* ---------- A single review: the book opened up ---------- */
+  .opened { padding: 0.5rem 0 4rem; }
+  .back {
+    display: inline-block; margin-bottom: 1.25rem;
+    font-weight: 700; text-decoration: none;
+    border-bottom: 3px solid var(--b2);
+  }
+  .cover-edge {
+    background: var(--c, var(--b1));
+    border-radius: 14px;
+    padding: 10px 10px 14px 18px;
+    max-width: 48rem;
+    box-shadow: 8px 8px 0 color-mix(in srgb, var(--shelf) 35%, transparent);
+  }
+  .page {
+    background: var(--paper);
+    border-radius: 6px 10px 10px 6px;
+    padding: clamp(1.25rem, 4vw, 2.75rem);
+    box-shadow: inset 10px 0 12px -10px rgba(0,0,0,0.35);
+  }
+  .page-head { display: flex; gap: 1.5rem; align-items: flex-start; }
+  .page-head .words { flex: 1; min-width: 0; }
+  .page h2 { margin: 0; font-size: clamp(2rem, 6vw, 3.1rem); line-height: 1.02; color: var(--shelf); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .page h2 { color: var(--b2); } }
+  :root[data-theme="dark"] .page h2 { color: var(--b2); }
+  .by { margin: 0.35rem 0 0; color: var(--soft-ink); font-size: 1.1rem; }
+  .rating { margin: 0.75rem 0 0; font-size: 1.7rem; letter-spacing: 0.06em; color: #e5a400; line-height: 1; }
+  .rating .off { color: color-mix(in srgb, var(--soft-ink) 30%, transparent); }
+  .when { margin-top: 0.4rem; font-size: 0.95rem; color: var(--soft-ink); }
+  .page-cover { width: clamp(6.5rem, 22vw, 11rem); flex: none; border-radius: 4px 8px 8px 4px; transform: rotate(3deg); box-shadow: 5px 5px 0 rgba(0,0,0,0.15); }
+  .body { margin-top: 1.5rem; max-width: 38rem; }
+  .body img { max-width: 100%; border-radius: 8px; }
+  .body blockquote {
+    margin: 1.25rem 0; padding: 0.75rem 1.1rem;
+    background: color-mix(in srgb, var(--b4) 45%, var(--paper));
+    border-radius: 18px 18px 18px 4px;
+    font-style: italic;
+  }
+  .body blockquote p { margin: 0; }
+  .body h3, .body h2 { font-family: "Bagel Fat One", sans-serif; font-weight: 400; color: var(--shelf); line-height: 1.15; }
+  .flip { display: flex; justify-content: space-between; gap: 1rem; max-width: 48rem; margin-top: 1.5rem; }
+  .flip a { font-weight: 700; text-decoration: none; border-bottom: 3px solid var(--b2); max-width: 48%; }
+  .flip .next { margin-left: auto; text-align: right; }
+
+  /* ---------- Smaller screens ---------- */
+  @media (max-width: 640px) {
+    :root { --row: 220px; --plank: 14px; }
+    .bookcase { padding: 0 0.4rem; border-width: 8px 8px 0; }
+    .book { width: calc(var(--w, 52px) * 0.82); height: calc(var(--h, 210px) * 0.8); }
+    .book.face { width: calc(var(--fw, 158px) * 0.8); }
+    .book .t { font-size: calc(var(--fs, 1.15rem) * 0.88); }
+    .stick { width: 30px; height: 30px; font-size: 0.7rem; }
+    .stick.top { width: 34px; height: 34px; }
+    .page-head { flex-direction: column-reverse; }
+  }
+</style>
+</head>
+<body>
+
+<header class="wrap sign">
+  <a href="#"><h1 class="display" id="site-title">My Book Reviews</h1></a>
+  <p id="site-tagline"></p>
+</header>
+
+<main class="wrap">
+  <section id="list-view">
+    <div class="tools">
+      <input id="search" class="search" type="search" placeholder="Find a book or author" aria-label="Find a book or author">
+      <div class="sorts" role="group" aria-label="Sort the shelf">
+        <button type="button" data-sort="newest" aria-pressed="true">Newest</button>
+        <button type="button" data-sort="stars" aria-pressed="false">Most stars</button>
+        <button type="button" data-sort="title" aria-pressed="false">A to Z</button>
+        <button type="button" data-sort="author" aria-pressed="false">Author</button>
+        <button type="button" data-sort="oldest" aria-pressed="false">Oldest</button>
+      </div>
+      <button type="button" class="surprise" id="surprise">Pick one for me</button>
+    </div>
+    <div class="bookcase"><div class="shelf" id="shelf"></div></div>
+    <p class="note" id="count"></p>
+  </section>
+
+  <section id="review-view" class="opened" hidden></section>
+</main>
+
+<script>
+/* ============================================================
+   SETTINGS: fill these in once
+   ============================================================ */
+var SETTINGS = {
+  title: "My Book Reviews",
+  tagline: "Every book I've read, and what I really thought.",
+  githubUser: "USERNAME",     // the GitHub account name
+  githubRepo: "REPO",         // the name of this repo
+  branch: "main",
+  folder: "reviews",          // where the review files live
+  maxStars: 5,
+  starSymbol: "★"
+};
+
+/* ============================================================
+   You shouldn't need to change anything below here
+   ============================================================ */
+var reviews = [];
+var sortBy = "newest";
+var firstDraw = true;
+var $ = function (id) { return document.getElementById(id); };
+
+$("site-title").textContent = SETTINGS.title;
+$("site-tagline").textContent = SETTINGS.tagline;
+
+// Reads the bit between the --- lines at the top of a review file
+function parseReview(name, text) {
+  var meta = {}, body = text;
+  var m = text.replace(/^﻿/, "").match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*(\r?\n|$)([\s\S]*)$/);
+  if (m) {
+    body = m[3];
+    m[1].split(/\r?\n/).forEach(function (line) {
+      var i = line.indexOf(":");
+      if (i < 1) return;
+      meta[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim().replace(/^["']|["']$/g, "");
+    });
+  }
+  var stars = Math.round(parseFloat(meta.stars));
+  stars = isNaN(stars) ? 0 : Math.max(0, Math.min(SETTINGS.maxStars, stars));
+  var dateNum = Date.parse(meta.date || "");
+  var slug = name.replace(/\.md$/i, "");
+  return {
+    file: name,
+    slug: slug,
+    title: meta.title || slug.replace(/[-_]+/g, " "),
+    author: meta.author || "",
+    stars: stars,
+    date: isNaN(dateNum) ? 0 : dateNum,
+    cover: meta.cover || "",
+    body: body.trim(),
+    plain: body.replace(/<[^>]*>/g, " ").replace(/[#*_>`\[\]()!-]/g, " ").replace(/\s+/g, " ").trim()
+  };
+}
+
+function fileUrl(name) { return SETTINGS.folder + "/" + encodeURIComponent(name); }
+function coverUrl(r) {
+  if (!r.cover) return "";
+  return /^https?:\/\//i.test(r.cover) ? r.cover : fileUrl(r.cover);
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+// The same book always gets the same colour, height and width
+function hash(s) {
+  var h = 2166136261;
+  for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+var LIGHT_BOOKS = [4, 5, 6, 8];  // these colours need dark writing
+function bookLook(r) {
+  var h = hash(r.slug);
+  var colour = (h % 8) + 1;
+  var len = r.title.length;
+  return {
+    colour: colour,
+    textColour: LIGHT_BOOKS.indexOf(colour) !== -1 ? "#173a22" : "#ffffff",
+    height: 180 + (h >>> 4) % 52,
+    width: Math.max(44, Math.min(74, 34 + len * 1.6)),
+    fontSize: len > 26 ? 0.82 : len > 16 ? 0.98 : 1.15
+  };
+}
+
+function ratingText(r) { return r.stars + " out of " + SETTINGS.maxStars + " stars"; }
+
+// Asks GitHub which .md files are in the reviews folder, then loads each one
+function loadReviews() {
+  var api = "https://api.github.com/repos/" + SETTINGS.githubUser + "/" + SETTINGS.githubRepo +
+    "/contents/" + SETTINGS.folder + "?ref=" + SETTINGS.branch;
+  return fetch(api)
+    .then(function (res) {
+      if (res.status === 403) throw new Error("GitHub is busy right now. Wait a few minutes and refresh the page.");
+      if (!res.ok) throw new Error("The reviews folder couldn't be found. Check the SETTINGS section in index.html.");
+      return res.json();
+    })
+    .then(function (files) {
+      var md = files.filter(function (f) {
+        return f.type === "file" && /\.md$/i.test(f.name) && f.name.charAt(0) !== "_";
+      });
+      return Promise.all(md.map(function (f) {
+        return fetch(fileUrl(f.name), { cache: "no-cache" })
+          .then(function (r) { return r.ok ? r.text() : ""; })
+          .then(function (text) { return text ? parseReview(f.name, text) : null; })
+          .catch(function () { return null; });
+      }));
+    })
+    .then(function (list) { reviews = list.filter(Boolean); });
+}
+
+function sorted(list) {
+  var copy = list.slice();
+  var text = function (a, b, k) { return a[k].localeCompare(b[k], undefined, { sensitivity: "base" }); };
+  copy.sort(function (a, b) {
+    if (sortBy === "oldest") return (a.date || Infinity) - (b.date || Infinity) || text(a, b, "title");
+    if (sortBy === "stars") return b.stars - a.stars || b.date - a.date;
+    if (sortBy === "title") return text(a, b, "title");
+    if (sortBy === "author") return text(a, b, "author") || text(a, b, "title");
+    return b.date - a.date || text(a, b, "title");
+  });
+  return copy;
+}
+
+function visible() {
+  var words = $("search").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return sorted(reviews.filter(function (r) {
+    var hay = (r.title + " " + r.author + " " + r.plain).toLowerCase();
+    return words.every(function (w) { return hay.indexOf(w) !== -1; });
+  }));
+}
+
+function bookHtml(r, n) {
+  var look = bookLook(r);
+  var label = r.title + (r.author ? ", by " + r.author : "") + ", " + ratingText(r);
+  var sticker = '<span class="stick' + (r.stars === SETTINGS.maxStars ? " top" : "") + '" aria-hidden="true">' +
+    r.stars + SETTINGS.starSymbol + "</span>";
+  var href = "#/" + encodeURIComponent(r.slug);
+  var style = "--n:" + n + ";--c:var(--b" + look.colour + ");--tc:" + look.textColour +
+    ";--h:" + look.height + "px;--w:" + look.width + "px;--fs:" + look.fontSize + "rem";
+  if (coverUrl(r)) {
+    return '<div class="slot"><a class="book face" href="' + href + '" style="' + style + ';--h:232px"' +
+      ' aria-label="' + esc(label) + '" data-slug="' + esc(r.slug) + '">' +
+      '<img src="' + esc(coverUrl(r)) + '" alt="" loading="lazy">' + sticker + "</a></div>";
+  }
+  var surname = (r.author.trim().split(/\s+/).pop() || "").slice(0, 9);
+  return '<div class="slot"><a class="book" href="' + href + '" style="' + style + '"' +
+    ' aria-label="' + esc(label) + '" data-slug="' + esc(r.slug) + '">' +
+    sticker +
+    '<span class="t" aria-hidden="true">' + esc(r.title) + "</span>" +
+    '<span class="a' + (surname.length > 7 ? " long" : "") + '" aria-hidden="true">' + esc(surname) + "</span></a></div>";
+}
+
+function renderShelf() {
+  var list = visible();
+  var q = $("search").value.trim();
+  var shelf = $("shelf");
+  var n = reviews.length;
+  if (!n) {
+    shelf.innerHTML = '<p class="empty">The shelf is empty. Write a review and put it in the reviews folder to add the first book.</p>';
+    $("count").textContent = "";
+    return;
+  }
+  shelf.innerHTML = list.length
+    ? list.map(bookHtml).join("") + '<div class="slot gap"></div>'
+    : '<p class="empty">No books on the shelf match "' + esc(q) + '". Try a different word.</p>';
+  shelf.classList.toggle("arrive", firstDraw);
+  firstDraw = false;
+  $("count").textContent = q
+    ? list.length + " of " + n + " books match."
+    : n + (n === 1 ? " book" : " books") + " on the shelf.";
+}
+
+function starsLine(r) {
+  var on = "", off = "";
+  for (var i = 0; i < SETTINGS.maxStars; i++) { if (i < r.stars) on += SETTINGS.starSymbol; else off += SETTINGS.starSymbol; }
+  return '<p class="rating" aria-label="' + ratingText(r) + '">' + on + '<span class="off">' + off + "</span></p>";
+}
+
+function renderReview(r) {
+  var look = bookLook(r);
+  var list = visible();
+  var i = list.indexOf(r);
+  var prev = i > 0 ? list[i - 1] : null;
+  var next = i !== -1 && i < list.length - 1 ? list[i + 1] : null;
+  var body = DOMPurify.sanitize(marked.parse(r.body));
+  var when = r.date ? new Date(r.date).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" }) : "";
+
+  var view = $("review-view");
+  view.innerHTML =
+    '<a class="back" href="#">Back to the shelf</a>' +
+    '<div class="cover-edge" style="--c:var(--b' + look.colour + ')"><article class="page">' +
+      '<div class="page-head"><div class="words">' +
+        '<h2 class="display">' + esc(r.title) + "</h2>" +
+        (r.author ? '<p class="by">by ' + esc(r.author) + "</p>" : "") +
+        starsLine(r) +
+        (when ? '<div class="when">Read in ' + esc(when) + "</div>" : "") +
+      "</div>" +
+      (coverUrl(r) ? '<img class="page-cover" src="' + esc(coverUrl(r)) + '" alt="Cover of ' + esc(r.title) + '">' : "") +
+      "</div>" +
+      '<div class="body">' + body + "</div>" +
+    "</article></div>" +
+    '<nav class="flip" aria-label="More reviews">' +
+      (prev ? '<a href="#/' + encodeURIComponent(prev.slug) + '">Previous: ' + esc(prev.title) + "</a>" : "") +
+      (next ? '<a class="next" href="#/' + encodeURIComponent(next.slug) + '">Next: ' + esc(next.title) + "</a>" : "") +
+    "</nav>";
+  // Pictures inside a review are looked for in the reviews folder too
+  view.querySelectorAll(".body img").forEach(function (img) {
+    var src = img.getAttribute("src") || "";
+    if (src && !/^(https?:|data:|\/)/i.test(src)) img.src = SETTINGS.folder + "/" + src;
+  });
+  document.title = r.title + " | " + SETTINGS.title;
+}
+
+function route() {
+  var slug = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
+  var r = slug && reviews.find(function (x) { return x.slug === slug; });
+  $("list-view").hidden = !!r;
+  $("review-view").hidden = !r;
+  if (r) {
+    renderReview(r);
+    window.scrollTo(0, 0);
+  } else {
+    document.title = SETTINGS.title;
+    renderShelf();
+  }
+}
+
+$("search").addEventListener("input", renderShelf);
+document.querySelectorAll("[data-sort]").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    sortBy = btn.getAttribute("data-sort");
+    document.querySelectorAll("[data-sort]").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); });
+    renderShelf();
+  });
+});
+$("surprise").addEventListener("click", function () {
+  var books = document.querySelectorAll("#shelf .book");
+  if (!books.length) return;
+  var b = books[Math.floor(Math.random() * books.length)];
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  b.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+  b.classList.add("pick");
+  setTimeout(function () { location.hash = "#/" + encodeURIComponent(b.getAttribute("data-slug")); }, reduce ? 0 : 1000);
+});
+window.addEventListener("hashchange", route);
+
+$("count").textContent = "Putting the books on the shelf…";
+loadReviews().then(route).catch(function (err) {
+  $("shelf").innerHTML = '<p class="empty">' + esc(err.message || "The reviews couldn't be loaded.") + "</p>";
+  $("count").textContent = "";
+});
+</script>
+</body>
+</html>
