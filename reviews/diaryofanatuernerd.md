@@ -2,7 +2,7 @@
 title: Diary of a nature nerd
 author:Tiffany Everett
 stars:  5
-date: 2026-10-06
+date: 2026-10-29
 cover: 
 ---
 This book was so amazing I want to make a nature diary!
