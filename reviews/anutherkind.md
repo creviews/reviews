@@ -1,7 +1,7 @@
 ---
 title: ANOTHER KIND
 author: CAIT MAY 
-stars:5 
+stars: 5 
 date: 2026-10-08
 ---
 The book was so so so so so so so so so amazing!
