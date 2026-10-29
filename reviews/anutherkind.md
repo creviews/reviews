@@ -1,10 +1,10 @@
 ---
 title: ANOTHER KIND
-author: CAIT MAY & TREVOR BREAM 
+author: CAIT MAY 
 stars:5 
 date: 2026-10-08
 ---
-The book was sooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo amazing!
+The book was so so so so so so so so so amazing!
 
 The book was about 6 (monsters) left their (safe) home and the kids have to FITE!
 
